@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Outer Chip Frame -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M38,32h32c3.3,0 6,2.7 6,6v32c0,3.3 -2.7,6 -6,6h-32c-3.3,0 -6,-2.7 -6,-6v-32c0,-3.3 2.7,-6 6,-6z"
+        android:strokeWidth="2.5"
+        android:strokeColor="#00E5A3" />
+
+    <!-- Chip Pins -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M44,26v6 M54,26v6 M64,26v6 M44,76v6 M54,76v6 M64,76v6 M26,44h6 M26,54h6 M26,64h6 M76,44h6 M76,54h6 M76,64h6"
+        android:strokeWidth="2"
+        android:strokeColor="#38BDF8" />
+
+    <!-- Center AI Brain / LLM Spark Nodes -->
+    <path
+        android:fillColor="#00E5A3"
+        android:pathData="M54,44a3,3 0 1,0 0.01,0z M46,54a3,3 0 1,0 0.01,0z M62,54a3,3 0 1,0 0.01,0z M54,64a3,3 0 1,0 0.01,0z" />
+
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M54,44L46,54 M54,44L62,54 M46,54L54,64 M62,54L54,64"
+        android:strokeWidth="1.5"
+        android:strokeColor="#69FFCA" />
+</vector>

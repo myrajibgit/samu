@@ -1,0 +1,6 @@
+{
+  "name": "PocketLLM",
+  "description": "Run and manage local LLM models on your phone with 1-tap download and streaming chat.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

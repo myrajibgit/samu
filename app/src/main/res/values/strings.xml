@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">PocketLLM</string>
+    <string name="nav_chat">Chat</string>
+    <string name="nav_models">Models</string>
+    <string name="nav_ollama">Ollama</string>
+    <string name="nav_settings">Settings</string>
+    <string name="new_chat">New Chat</string>
+    <string name="download_model">Download</string>
+    <string name="model_installed">Installed</string>
+    <string name="search_models">Search local models…</string>
+    <string name="type_message">Message PocketLLM…</string>
+</resources>
+
