@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.net.Uri
 import android.util.Log
 import com.example.model.ModelItem
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -14,7 +15,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.awaitClose
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -122,6 +122,8 @@ class LlamaCppEngine(private val contentResolver: ContentResolver) {
             _loadedModel.value = loaded
             Log.i(TAG, "Model loaded into RAM: ${loaded.name} (ctx=$ctxLen)")
             loaded
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Exception during model load", e)
             release()
@@ -154,6 +156,9 @@ class LlamaCppEngine(private val contentResolver: ContentResolver) {
         val prompt = PromptFormatter.format(templateFamily, history, systemPrompt)
 
         val startMs = System.currentTimeMillis()
+
+        // Completes when the native generation finishes (or immediately if already done).
+        val finished = CompletableDeferred<Unit>()
 
         val collector = launch {
             engineFlow.collect { event ->
@@ -188,29 +193,37 @@ class LlamaCppEngine(private val contentResolver: ContentResolver) {
                                 generationTimeMs = duration
                             )
                         )
+                        finished.complete(Unit)
                         close()
                     }
-                    is LlamaHelper.LLMEvent.Error ->
+                    is LlamaHelper.LLMEvent.Error -> {
+                        finished.complete(Unit)
                         close(RuntimeException(event.message))
+                    }
                     else -> Unit
                 }
             }
         }
 
         try {
-            // Returns immediately; tokens arrive via engineFlow (see collector above).
+            // Queues the native generation; tokens arrive via engineFlow (collector above).
             helper.predict(prompt)
+            // Hold the channel open until the native run signals Done/Error, so the
+            // UI keeps streaming until the model is actually finished.
+            finished.await()
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce // never swallow structured-cancellation (stop button)
         } catch (e: Exception) {
             close(RuntimeException(e.message ?: "Native generation failed", e))
-        }
-
-        // Keep the channel open until the native Done event closes it, or the caller
-        // cancels this flow (stop button) — then halt the native generation too.
-        awaitClose {
-            try {
-                helper.stopPrediction()
-            } catch (e: Exception) {
-                Log.w(TAG, "stopPrediction during close failed", e)
+        } finally {
+            collector.cancel()
+            // If the caller cancelled this flow (stop button), halt native generation too.
+            if (!finished.isCompleted) {
+                try {
+                    helper.stopPrediction()
+                } catch (e: Exception) {
+                    Log.w(TAG, "stopPrediction during close failed", e)
+                }
             }
         }
     }

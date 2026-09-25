@@ -532,6 +532,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val model = _activeModel.value
         if (convId != null && model != null && _isGenerating.value) {
             generationJob?.cancel()
+            llamaEngine.stopGeneration()
             viewModelScope.launch {
                 finalizeMessage(convId, model.name, System.currentTimeMillis() - 1000)
             }
