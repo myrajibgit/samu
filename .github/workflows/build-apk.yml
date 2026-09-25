@@ -25,6 +25,28 @@ jobs:
       - name: Grant execute permission for Gradle wrapper
         run: chmod +x gradlew
 
+      # Optional: deliver secrets from Infisical when a machine identity is configured.
+      # Setup (only needed for release signing or future secrets):
+      #   1. Infisical → Access Control > Machine Identities → create an identity
+      #      assigned to this project with the Developer role (Dev environment only)
+      #   2. Repo variable:  INFISICAL_PROJECT_ID  (non-secret project ID)
+      #   3. Repo secrets:   INFISICAL_CLIENT_ID / INFISICAL_CLIENT_SECRET
+      # Until then this step is skipped automatically; debug builds need no secrets.
+      - name: Inject secrets from Infisical (optional)
+        if: ${{ vars.INFISICAL_PROJECT_ID != '' }}
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+        run: |
+          curl -1sLf 'https://artifacts-cli.infisical.com/setup.deb.sh' | sudo -E bash
+          sudo apt-get update -y && sudo apt-get install -y infisical
+          export INFISICAL_TOKEN=$(infisical login --method=universal-auth \
+            --client-id="$INFISICAL_CLIENT_ID" \
+            --client-secret="$INFISICAL_CLIENT_SECRET" --silent)
+          infisical secrets export --format=dotenv --env=dev \
+            --projectId="${{ vars.INFISICAL_PROJECT_ID }}" > .env
+          echo "Delivered secrets to .env ($(wc -l < .env) lines) — values never printed"
+
       # llama.cpp now ships prebuilt via the llamacpp-kotlin Gradle dependency
       # (native .so for arm64-v8a + x86_64 included) — no NDK/CMake step needed.
       - name: Run unit tests
