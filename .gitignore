@@ -14,5 +14,10 @@
 .externalNativeBuild
 .cxx
 local.properties
+# Secrets — real values live in Infisical; nothing below should ever be committed
 .env
+.env.*
+!.env.example
+.env.backup
+.infisical-dark-mode*
 debug.keystore

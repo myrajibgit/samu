@@ -16,6 +16,35 @@ files for `arm64-v8a` and `x86_64` ship inside the app). Download a GGUF model o
 3. Plug the phone in, select it in the device dropdown, press **Run ▶**.
    - Emulators work too (x86_64 is supported) — great for a quick smoke test.
 
+## Secrets via Infisical (optional)
+
+PocketLLM builds and runs with **zero secrets**. When you eventually need them
+(e.g. release-signing credentials), they are delivered centrally by
+[Infisical](https://infisical.com) instead of a `.env` file on disk:
+
+```bash
+# one-time setup
+winget install infisical.infisical
+infisical login        # opens your browser
+infisical init         # links this folder (writes .infisical.json — safe to commit)
+
+# import keys: drag & drop your old .env (or .env.example) onto the
+# Secrets Overview page at https://app.infisical.com
+
+# then run builds through the wrapper — secrets arrive as env vars:
+infisical run --env=dev -- ./gradlew assembleDebug
+infisical run --env=dev -- ./gradlew assembleRelease   # needs KEYSTORE_PATH/STORE_PASSWORD/KEY_ALIAS/KEY_PASSWORD
+```
+
+Confirm delivery without ever printing a value — check the length only:
+
+```bash
+infisical secrets get GEMINI_API_KEY --plain | tr -d '\n' | wc -c
+```
+
+Then rename `.env` to `.env.backup` and rerun the wrapped build — if it still
+works, secrets are coming from Infisical, not disk.
+
 ## First Chat (airplane-mode friendly)
 
 1. **Models** tab → tap **Download** on a model that fits your RAM:
