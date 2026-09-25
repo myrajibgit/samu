@@ -9,6 +9,7 @@ import com.example.data.repository.ChatRepository
 import com.example.data.repository.ModelRepository
 import com.example.downloader.ModelDownloadManager
 import com.example.engine.GgufParser
+import com.example.engine.LlamaCppEngine
 import com.example.engine.LocalInferenceEngine
 import com.example.engine.OllamaBridgeClient
 import com.example.engine.OllamaModel
@@ -22,6 +23,7 @@ import com.example.model.ModelItem
 import com.example.util.CodeFileItem
 import com.example.util.CodeWorkspaceManager
 import com.example.util.HardwareUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -56,7 +58,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val chatRepository = ChatRepository(db.conversationDao(), db.chatMessageDao())
 
     val apiKeyManager = com.example.util.ApiKeyManager(application)
-    private val inferenceEngine = LocalInferenceEngine(application)
+
+    // Real on-device llama.cpp engine (runs downloaded GGUF files on the CPU, fully offline).
+    private val llamaEngine = LlamaCppEngine(application.contentResolver)
+    val engineLoadedModel: StateFlow<LlamaCppEngine.LoadedModel?> = llamaEngine.loadedModel
+    val isEngineLoading: StateFlow<Boolean> = llamaEngine.isLoading
+    private val inferenceEngine = LocalInferenceEngine(llamaEngine)
     private val ollamaClient = OllamaBridgeClient()
 
     private val _isCloudAiActive = MutableStateFlow(apiKeyManager.isConfigured())
@@ -320,8 +327,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadModelInRam(modelId: String) {
         viewModelScope.launch {
+            val model = modelRepository.getModelById(modelId) ?: return@launch
             modelRepository.setLoadedModel(modelId)
             _selectedModelId.value = modelId
+            llamaEngine.loadIntoRam(model)
+        }
+    }
+
+    /** Frees the llama.cpp context + weights from RAM. */
+    fun unloadEngine() {
+        viewModelScope.launch(Dispatchers.IO) {
+            llamaEngine.release()
+            modelRepository.unloadAllModels()
         }
     }
 
@@ -683,6 +700,11 @@ Instructions:
             }
             _isAiCoding.value = false
         }
+    }
+
+    override fun onCleared() {
+        llamaEngine.shutdown()
+        super.onCleared()
     }
 
     private fun simulateExecution(name: String, code: String): String {

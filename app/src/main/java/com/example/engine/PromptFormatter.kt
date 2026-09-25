@@ -11,6 +11,7 @@ object PromptFormatter {
             "qwen", "smollm" -> formatChatML(messages, systemPrompt)
             "deepseek" -> formatDeepSeek(messages, systemPrompt)
             "tinyllama" -> formatTinyLlama(messages, systemPrompt)
+            "gemma" -> formatGemma(messages, systemPrompt)
             else -> formatChatML(messages, systemPrompt)
         }
     }
@@ -49,6 +50,19 @@ object PromptFormatter {
             sb.append("<｜$tag｜>$content")
         }
         sb.append("<｜Assistant｜><think>\n")
+        return sb.toString()
+    }
+
+    private fun formatGemma(messages: List<Pair<String, String>>, systemPrompt: String): String {
+        val sb = StringBuilder("<start_of_turn>user\n")
+        if (systemPrompt.isNotBlank()) {
+            sb.append("$systemPrompt\n\n")
+        }
+        for ((role, content) in messages) {
+            if (role == "system") continue // Gemma has no system role; fold it into the first user turn
+            if (role == "user") sb.append("$content<end_of_turn>\n<start_of_turn>model\n")
+            else sb.append("$content<end_of_turn>\n<start_of_turn>user\n")
+        }
         return sb.toString()
     }
 

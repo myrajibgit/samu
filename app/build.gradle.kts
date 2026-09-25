@@ -94,7 +94,6 @@ secrets {
 }
 
 // Do not fail the build if google-services.json is unavailable.
-// The GitHub Actions log confirms this was being treated as a warning.
 googleServices {
     missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN
 }
@@ -148,6 +147,14 @@ dependencies {
 
     implementation(libs.firebase.appcheck.recaptcha)
     implementation(libs.firebase.appcheck.debug)
+
+    // Real on-device GGUF inference (llama.cpp bindings, includes native .so for arm64-v8a + x86_64).
+    // Excludes the library's transitive appcompat/material/stdlib bloat — only ContentResolver/Uri are used.
+    implementation(libs.llamacpp.kotlin) {
+        exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
+        exclude(group = "androidx.appcompat", module = "appcompat")
+        exclude(group = "com.google.android.material", module = "material")
+    }
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.core)
