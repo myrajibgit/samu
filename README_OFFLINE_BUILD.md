@@ -78,6 +78,36 @@ works, secrets are coming from Infisical, not disk.
 Optional: the **Gemini API key** field in Settings still exists for a cloud-assist
 via `GeminiCloudService`, but the chat never uses it — fully optional.
 
+## Honest limitations (what this build does *not* do)
+
+- **Temperature / Top-P sliders only affect Ollama.** The bundled llama.cpp wrapper
+  (`LlamaHelper`) exposes `predict(prompt)` without sampler settings, so on-device
+  generations use the native runtime's default sampler. Wiring the sliders into the
+  native sampler needs the lower-level `LlamaAndroid.launchCompletion(ctxId, params)`
+  API (the native library does accept `temperature`, `top_p`, `top_k`, `min_p`,
+  `seed`, `n_predict`).
+- **Code Studio does not execute code.** There is no Python/Kotlin runtime on the
+  device, so the Output tab performs an honest static review (line counts, imports,
+  balanced brackets, TODO markers) and says so. HTML files do get a real WebView
+  preview.
+- **`assembleRelease` needs signing secrets.** Debug APKs are signed with the standard
+  Android debug key; a release build requires `KEYSTORE_PATH`, `STORE_PASSWORD`,
+  `KEY_ALIAS`, `KEY_PASSWORD` (deliver them via `infisical run`).
+- **Unit tests need care with the JDK.** `ExampleRobolectricTest` runs on Robolectric
+  SDK 34 because sandboxing SDK 36 requires JDK 21; the project targets JDK 17.
+
+## Building locally (verified)
+
+```bash
+./gradlew assembleDebug          # -> app/build/outputs/apk/debug/app-debug.apk (~67 MB)
+./gradlew testDebugUnitTest      # -> 6 engine tests + Robolectric + plain JUnit
+```
+
+A local debug build was verified end-to-end (JDK 17 + Android SDK 36.1) and the
+produced APK contains the native `librnllama*.so` for `arm64-v8a` and `x86_64`
+(CPU-variant dispatch included). The same build also runs in CI
+(`.github/workflows/build-apk.yml`) which uploads the APK as an artifact.
+
 ## Advanced: upgrading the native core
 
 The binding's llama.cpp core is pinned upstream. To bump it or build from source,

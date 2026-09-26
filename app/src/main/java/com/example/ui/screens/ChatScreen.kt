@@ -83,6 +83,9 @@ fun ChatScreen(
     generationTps: Float,
     generationTokensCount: Int,
     promptPresets: List<SystemPromptPreset>,
+    isEngineLoading: Boolean = false,
+    engineError: String? = null,
+    onDismissEngineError: () -> Unit = {},
     onSendMessage: (String) -> Unit,
     onStopGeneration: () -> Unit,
     onNewChat: () -> Unit,
@@ -194,6 +197,60 @@ fun ChatScreen(
                     .border(1.dp, DarkCardBorder)
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
+                // Native engine status: loading weights, or a failure the user must know about.
+                if (isEngineLoading) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 6.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(AccentMint.copy(alpha = 0.12f))
+                            .border(1.dp, AccentMint.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .testTag("engine_loading_banner"),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "⏳ Loading model weights into RAM… large models can take a while.",
+                            style = MaterialTheme.typography.labelSmall.copy(color = AccentMint)
+                        )
+                    }
+                }
+
+                if (engineError != null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 6.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(AccentRose.copy(alpha = 0.12f))
+                            .border(1.dp, AccentRose.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                            .padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp)
+                            .testTag("engine_error_banner"),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = engineError,
+                            style = MaterialTheme.typography.labelSmall.copy(color = AccentRose),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = "Dismiss",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = AccentRose,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onDismissEngineError() }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .testTag("engine_error_dismiss")
+                        )
+                    }
+                }
+
                 // If generating, show live stop action banner
                 AnimatedVisibility(visible = isGenerating) {
                     Row(

@@ -107,7 +107,7 @@ fun CodeStudioScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Run Code",
+                    contentDescription = "Review code",
                     tint = AccentMint
                 )
             }
@@ -253,7 +253,7 @@ fun CodeStudioScreen(
                     onRunCode()
                     viewMode = CodeStudioViewMode.TERMINAL
                 },
-                label = { Text("Terminal Console", fontSize = 11.sp) },
+                label = { Text("Output / Review", fontSize = 11.sp) },
                 leadingIcon = { Icon(Icons.Default.Terminal, contentDescription = null, modifier = Modifier.size(14.dp)) },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = DarkCard,

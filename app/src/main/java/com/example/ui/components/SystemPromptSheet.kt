@@ -222,6 +222,15 @@ fun SystemPromptSheet(
                 modifier = Modifier.testTag("top_p_slider")
             )
 
+            Text(
+                text = "These values are sent to an Ollama server when you use one. On-device " +
+                    "llama.cpp generations currently use the runtime's own sampler defaults.",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp
+                )
+            )
+
             Spacer(modifier = Modifier.height(14.dp))
 
             Button(

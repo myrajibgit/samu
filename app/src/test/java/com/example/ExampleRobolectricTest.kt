@@ -9,7 +9,9 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+// Robolectric needs a JDK 21 runtime to sandbox Android 36; the project targets Java 17,
+// so this test runs against SDK 34 (behaviour identical for resource lookups).
+@Config(sdk = [34])
 class ExampleRobolectricTest {
 
   @Test

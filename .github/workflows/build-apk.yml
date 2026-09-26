@@ -49,16 +49,18 @@ jobs:
 
       # llama.cpp now ships prebuilt via the llamacpp-kotlin Gradle dependency
       # (native .so for arm64-v8a + x86_64 included) — no NDK/CMake step needed.
-      - name: Run unit tests
-        run: ./gradlew testDebugUnitTest --no-daemon --stacktrace
-        continue-on-error: true
-
       - name: Build Debug APK with Gradle
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
+      # Uploaded before the tests so a failing test never costs you the APK.
       - name: Upload Finished APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: PocketLLM-Debug-APK
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 14
+
+      # Unit tests are green on JDK 17 (Robolectric pinned to SDK 34), so failures
+      # now fail the workflow instead of being silently ignored.
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --no-daemon --stacktrace

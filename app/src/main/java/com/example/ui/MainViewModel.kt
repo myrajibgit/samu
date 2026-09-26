@@ -63,6 +63,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val llamaEngine = LlamaCppEngine(application.contentResolver)
     val engineLoadedModel: StateFlow<LlamaCppEngine.LoadedModel?> = llamaEngine.loadedModel
     val isEngineLoading: StateFlow<Boolean> = llamaEngine.isLoading
+    val engineError: StateFlow<String?> = llamaEngine.lastError
+
+    /** Dismisses the engine error banner once the user has read it. */
+    fun dismissEngineError() {
+        llamaEngine.clearError()
+    }
     private val inferenceEngine = LocalInferenceEngine(llamaEngine)
     private val ollamaClient = OllamaBridgeClient()
 
@@ -427,7 +433,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     executeLocalInference(conversation, model, history, startTime)
                 }
             } catch (e: Exception) {
-                // If canceled or error, save what we have
+                // Cancellation (stop button) keeps whatever streamed so far; a real failure
+                // with nothing generated must not look like a silent no-op.
+                if (e !is kotlinx.coroutines.CancellationException &&
+                    _streamingResponse.value.isBlank() &&
+                    _streamingThinking.value.isBlank()
+                ) {
+                    _streamingResponse.value =
+                        "❌ **Generation failed.** ${e.message ?: "The native engine stopped unexpectedly."}"
+                }
                 finalizeMessage(conversation.id, model.name, startTime)
             } finally {
                 _isGenerating.value = false
@@ -644,11 +658,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun runCurrentCode() {
         val file = _selectedCodeFile.value ?: return
         saveCurrentFile()
-        if (file.language == "html") {
-            _terminalConsoleLog.value = "Starting Live Web Renderer for ${file.name}...\nInteractive HTML5 Canvas loaded."
+        _terminalConsoleLog.value = if (file.language == "html") {
+            "No in-app browser engine on Android — copy this HTML into a browser to render it.\n" +
+                "Static check for ${file.name}: ${describeWorkspaceFile(file)}"
         } else {
-            _terminalConsoleLog.value = "Executing ${file.name} in sandbox...\n" +
-                simulateExecution(file.name, _codeEditorContent.value)
+            // Honest static review: Android has no Python/Ruby interpreter and we will not
+            // pretend to have executed the file.
+            "Static review of ${file.name} (NOT executed — no runtime is bundled):\n" +
+                staticReview(file.name, _codeEditorContent.value)
         }
     }
 
@@ -708,27 +725,42 @@ Instructions:
         super.onCleared()
     }
 
-    private fun simulateExecution(name: String, code: String): String {
+    private fun describeWorkspaceFile(file: CodeFileItem): String {
+        val lines = file.content.lines()
+        return "${lines.size} lines, ${file.content.length} chars."
+    }
+
+    /**
+     * A deliberately modest static report instead of a fabricated interpreter run.
+     * It reports facts it can actually verify (size, imports, TODO markers) and never
+     * claims the code ran.
+     */
+    private fun staticReview(name: String, code: String): String {
         val sb = StringBuilder()
         val lines = code.lines()
-        var hasOutput = false
-        for (line in lines) {
-            val trimmed = line.trim()
-            if (trimmed.startsWith("print(") && trimmed.endsWith(")")) {
-                val inside = trimmed.substring(6, trimmed.length - 1).replace("\"", "").replace("'", "")
-                sb.append(">>> ").append(inside).append("\n")
-                hasOutput = true
-            } else if (trimmed.startsWith("println(") && trimmed.endsWith(")")) {
-                val inside = trimmed.substring(8, trimmed.length - 1).replace("\"", "").replace("'", "")
-                sb.append(">>> ").append(inside).append("\n")
-                hasOutput = true
-            }
+        sb.append("• Lines: ${lines.size}\n")
+
+        val imports = lines.map { it.trim() }
+            .filter { it.startsWith("import ") || it.startsWith("from ") || it.startsWith("#include") }
+        sb.append("• Imports/includes: ${imports.size}\n")
+
+        val unfinished = lines.filter {
+            val t = it.trim()
+            t.startsWith("TODO") || t.contains("TODO:") || t.contains("FIXME") || t.contains("pass #")
         }
-        if (!hasOutput) {
-            sb.append("Build & Compilation Successful.\nProgram executed with exit code 0 (Execution time: 38ms).\nAll tests passed.")
-        } else {
-            sb.append("\nProcess finished with exit code 0.")
+        if (unfinished.isNotEmpty()) {
+            sb.append("• Unfinished markers: ${unfinished.size} (TODO/FIXME)\n")
         }
+
+        val prints = lines.count { it.trim().startsWith("print(") || it.trim().startsWith("println(") }
+        if (prints > 0) {
+            sb.append("• print/println calls (would print when run elsewhere): $prints\n")
+        }
+
+        val brackets = code.count { it == '{' } - code.count { it == '}' }
+        val parens = code.count { it == '(' } - code.count { it == ')' }
+        sb.append(if (brackets == 0 && parens == 0) "• Brackets: balanced" else "• Brackets unbalanced ({}: $brackets, (): $parens)")
+        sb.append("\n\nTo actually execute $name, open it in a desktop toolchain — PocketLLM has no Python/Kotlin runtime.")
         return sb.toString()
     }
 }

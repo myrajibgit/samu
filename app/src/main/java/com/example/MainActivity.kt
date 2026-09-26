@@ -80,6 +80,9 @@ fun MainAppContent(viewModel: MainViewModel) {
     val generationTps by viewModel.generationTps.collectAsStateWithLifecycle()
     val generationTokensCount by viewModel.generationTokensCount.collectAsStateWithLifecycle()
 
+    val isEngineLoading by viewModel.isEngineLoading.collectAsStateWithLifecycle()
+    val engineError by viewModel.engineError.collectAsStateWithLifecycle()
+
     val inspectedMetadata by viewModel.inspectedMetadata.collectAsStateWithLifecycle()
     val inspectedModelName by viewModel.inspectedModelName.collectAsStateWithLifecycle()
 
@@ -234,6 +237,9 @@ fun MainAppContent(viewModel: MainViewModel) {
                         generationTps = generationTps,
                         generationTokensCount = generationTokensCount,
                         promptPresets = viewModel.promptPresets,
+                        isEngineLoading = isEngineLoading,
+                        engineError = engineError,
+                        onDismissEngineError = { viewModel.dismissEngineError() },
                         onSendMessage = { text -> viewModel.sendMessage(text) },
                         onStopGeneration = { viewModel.stopGeneration() },
                         onNewChat = { viewModel.createNewConversation() },

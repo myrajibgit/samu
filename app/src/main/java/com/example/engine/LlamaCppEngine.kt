@@ -56,6 +56,17 @@ class LlamaCppEngine(private val contentResolver: ContentResolver) {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    /**
+     * Last failure reported by the native layer (load or generation).
+     * Surfaced in the UI as a banner so failures are never silent.
+     */
+    private val _lastError = MutableStateFlow<String?>(null)
+    val lastError: StateFlow<String?> = _lastError.asStateFlow()
+
+    fun clearError() {
+        _lastError.value = null
+    }
+
     fun isModelLoaded(modelId: String): Boolean = loadedRef.get()?.modelId == modelId
 
     /**
@@ -66,11 +77,13 @@ class LlamaCppEngine(private val contentResolver: ContentResolver) {
         val file = model.localFilePath?.let { File(it) }
         if (file == null || !file.exists() || file.length() < 1024) {
             Log.e(TAG, "Model file missing or too small: ${model.localFilePath}")
+            _lastError.value = "${model.name} isn't downloaded on this device yet."
             return@withContext null
         }
         loadedRef.get()?.let { if (it.modelId == model.id) return@withContext it }
 
         _isLoading.value = true
+        _lastError.value = null
         try {
             release()
 
@@ -107,6 +120,7 @@ class LlamaCppEngine(private val contentResolver: ContentResolver) {
 
             error.get()?.let { err ->
                 Log.e(TAG, "Model load failed: $err")
+                _lastError.value = "Couldn't load ${model.name}: $err"
                 release()
                 return@withContext null
             }
@@ -114,6 +128,9 @@ class LlamaCppEngine(private val contentResolver: ContentResolver) {
             val loaded = result.get()
             if (loaded == null) {
                 Log.e(TAG, "Model load timed out after ${LOAD_TIMEOUT_MS / 1000}s")
+                _lastError.value =
+                    "Timed out after ${LOAD_TIMEOUT_MS / 1000}s while loading ${model.name} " +
+                        "(${file.length() / (1024 * 1024)} MB). Free up RAM or pick a smaller model."
                 release()
                 return@withContext null
             }
@@ -126,6 +143,7 @@ class LlamaCppEngine(private val contentResolver: ContentResolver) {
             throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Exception during model load", e)
+            _lastError.value = "Couldn't load ${model.name}: ${e.message ?: "unknown native error"}"
             release()
             null
         } finally {
@@ -149,13 +167,18 @@ class LlamaCppEngine(private val contentResolver: ContentResolver) {
                 "No model loaded into RAM. Download a model in the Models tab, then tap 'Load in RAM' (or just start chatting to auto-load it)."
             )
 
-        // DeepSeek R1 distills emit <think> reasoning blocks; key off the model id
-        // so the UI can route them into the collapsible "thinking" section.
+        // DeepSeek R1 distills emit reasoning blocks delimited by the thinking markers;
+        // key off the model id so the UI can route that text into the collapsible
+        // "thinking" section instead of the final answer.
         val isReasoningModel = loaded.modelId.contains("deepseek", ignoreCase = true)
         val templateFamily = if (isReasoningModel) "deepseek" else loaded.family
         val prompt = PromptFormatter.format(templateFamily, history, systemPrompt)
 
         val startMs = System.currentTimeMillis()
+
+        // DeepSeek's template opens the reply inside the thinking block, so reasoning
+        // models start there and leave it when the closing marker arrives.
+        var insideThinking = isReasoningModel
 
         // Completes when the native generation finishes (or immediately if already done).
         val finished = CompletableDeferred<Unit>()
@@ -164,21 +187,34 @@ class LlamaCppEngine(private val contentResolver: ContentResolver) {
             engineFlow.collect { event ->
                 when (event) {
                     is LlamaHelper.LLMEvent.Ongoing -> {
-                        val token = event.word
-                        val isThinkMarker = isReasoningModel &&
-                            (token.contains("<think>") || token.contains("</think>"))
-                        val elapsed = (System.currentTimeMillis() - startMs).coerceAtLeast(1)
-                        val tps = if (event.tokenCount > 0) event.tokenCount * 1000f / elapsed else 0f
-                        send(
-                            InferenceChunk(
-                                token = token,
-                                isThinking = isThinkMarker,
-                                isDone = false,
-                                tokensGenerated = event.tokenCount,
-                                tokensPerSecond = tps,
-                                generationTimeMs = elapsed
+                        var visible: String? = event.word
+                        if (isReasoningModel) {
+                            when (classifyThinkMarker(event.word)) {
+                                ThinkMarker.OPEN -> {
+                                    insideThinking = true
+                                    visible = stripThinkMarker(event.word)
+                                }
+                                ThinkMarker.CLOSE -> {
+                                    insideThinking = false
+                                    visible = stripThinkMarker(event.word)
+                                }
+                                ThinkMarker.NONE -> Unit
+                            }
+                        }
+                        if (visible != null) {
+                            val elapsed = (System.currentTimeMillis() - startMs).coerceAtLeast(1)
+                            val tps = if (event.tokenCount > 0) event.tokenCount * 1000f / elapsed else 0f
+                            send(
+                                InferenceChunk(
+                                    token = visible,
+                                    isThinking = isReasoningModel && insideThinking,
+                                    isDone = false,
+                                    tokensGenerated = event.tokenCount,
+                                    tokensPerSecond = tps,
+                                    generationTimeMs = elapsed
+                                )
                             )
-                        )
+                        }
                     }
                     is LlamaHelper.LLMEvent.Done -> {
                         val duration = event.duration.coerceAtLeast(1)
@@ -197,6 +233,7 @@ class LlamaCppEngine(private val contentResolver: ContentResolver) {
                         close()
                     }
                     is LlamaHelper.LLMEvent.Error -> {
+                        _lastError.value = "Generation failed: ${event.message}"
                         finished.complete(Unit)
                         close(RuntimeException(event.message))
                     }
@@ -255,8 +292,37 @@ class LlamaCppEngine(private val contentResolver: ContentResolver) {
         scope.cancel()
     }
 
+    internal enum class ThinkMarker { OPEN, CLOSE, NONE }
+
     companion object {
         private const val TAG = "LlamaCppEngine"
         private const val LOAD_TIMEOUT_MS = 120_000L
+
+        /**
+         * Detects the reasoning delimiters as emitted by real DeepSeek GGUF tokenizers.
+         *
+         * Those markers are famously exotic: they carry a zero-width space and full-width
+         * bars, and can also arrive split across tokens. So instead of an exact literal
+         * match we look for a short token that mentions "think" and closes with '>' —
+         * which is unambiguous in practice for a tokenizer's special token.
+         */
+        internal fun classifyThinkMarker(token: String): ThinkMarker {
+            val lower = token.lowercase()
+            if (!lower.contains("think")) return ThinkMarker.NONE
+            if (!lower.trimEnd().endsWith(">")) return ThinkMarker.NONE
+            if (token.length > MAX_MARKER_LENGTH) return ThinkMarker.NONE
+            return if (lower.contains('/')) ThinkMarker.CLOSE else ThinkMarker.OPEN
+        }
+
+        /** Removes the delimiter text while keeping any real content glued to it. */
+        internal fun stripThinkMarker(token: String): String? {
+            val stripped = token
+                .replace("\u200B", "")
+                .replace(Regex("</\\s*think\\s*>"), "")
+                .replace(Regex("<\\s*think\\s*>"), "")
+            return stripped.ifEmpty { null }
+        }
+
+        private const val MAX_MARKER_LENGTH = 24
     }
 }
