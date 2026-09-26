@@ -148,7 +148,7 @@ def generate_fibonacci(count):
         fib.append(fib[-1] + fib[-2])
     return fib
 
-print("--- PocketLLM Python Execution Engine ---")
+print("--- llm-offline Python Execution Engine ---")
 count = 10
 fibs = generate_fibonacci(count)
 print(f"First {count} Fibonacci numbers: {fibs}")
@@ -159,11 +159,11 @@ print("Execution completed with returncode 0.")
 """.trimIndent()
             saveFile("main.py", defaultPython)
 
-            val defaultKotlin = """// PocketLLM Mobile Kotlin Solution
+            val defaultKotlin = """// llm-offline Mobile Kotlin Solution
 package com.example.solution
 
 fun main() {
-    println("PocketLLM Claude Code Engine ready.")
+    println("llm-offline Claude Code Engine ready.")
     val items = listOf("SmolLM2", "Llama 3.2", "Qwen 2.5", "DeepSeek R1")
     val stats = items.map { it.uppercase() }
     println("Supported models: " + stats.joinToString(", "))

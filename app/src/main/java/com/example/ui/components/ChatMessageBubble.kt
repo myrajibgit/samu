@@ -136,7 +136,7 @@ fun ChatMessageBubble(
                     IconButton(
                         onClick = {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            clipboard.setPrimaryClip(ClipData.newPlainText("PocketLLM", message.content))
+                            clipboard.setPrimaryClip(ClipData.newPlainText("llm-offline", message.content))
                             Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.size(32.dp).testTag("copy_message_button")

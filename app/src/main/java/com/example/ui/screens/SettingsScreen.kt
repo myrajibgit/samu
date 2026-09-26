@@ -325,7 +325,7 @@ fun SettingsScreen(
                 ) {
                     Icon(Icons.Default.Info, contentDescription = null, tint = AccentCyan)
                     Text(
-                        text = "PocketLLM Mobile AI Runner",
+                        text = "llm-offline Mobile AI Runner",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface
                     )

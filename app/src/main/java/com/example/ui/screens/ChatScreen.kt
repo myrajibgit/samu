@@ -301,7 +301,7 @@ fun ChatScreen(
                             .testTag("chat_input_field"),
                         placeholder = {
                             Text(
-                                text = "Message ${activeModel?.name?.take(16) ?: "PocketLLM"}…",
+                                text = "Message ${activeModel?.name?.take(16) ?: "llm-offline"}…",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         },
@@ -418,7 +418,7 @@ fun EmptyChatWelcome(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = activeModel?.name ?: "PocketLLM",
+            text = activeModel?.name ?: "llm-offline",
             style = MaterialTheme.typography.titleLarge.copy(
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp

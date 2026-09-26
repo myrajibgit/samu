@@ -760,7 +760,7 @@ Instructions:
         val brackets = code.count { it == '{' } - code.count { it == '}' }
         val parens = code.count { it == '(' } - code.count { it == ')' }
         sb.append(if (brackets == 0 && parens == 0) "• Brackets: balanced" else "• Brackets unbalanced ({}: $brackets, (): $parens)")
-        sb.append("\n\nTo actually execute $name, open it in a desktop toolchain — PocketLLM has no Python/Kotlin runtime.")
+        sb.append("\n\nTo actually execute $name, open it in a desktop toolchain — llm-offline has no Python/Kotlin runtime.")
         return sb.toString()
     }
 }

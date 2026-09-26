@@ -24,7 +24,7 @@ data class InferenceChunk(
  *
  * Routes to the real on-device llama.cpp engine ([LlamaCppEngine]) when the model's
  * GGUF file is available — loading it into RAM automatically on first use. There is
- * deliberately NO canned/fake response path and NO cloud fallback: PocketLLM is an
+ * deliberately NO canned/fake response path and NO cloud fallback: llm-offline is an
  * offline-first app, so if no model is downloaded yet the user gets clear guidance
  * instead of a hallucinated answer.
  */
@@ -75,7 +75,7 @@ class LocalInferenceEngine(private val llamaEngine: LlamaCppEngine? = null) {
         // No local GGUF: tell the user exactly what to do instead of faking a reply.
         val guidance = buildString {
             append("📥 **${model.name} is not downloaded yet.**\n\n")
-            append("PocketLLM runs models 100% offline on this device — there is no cloud fallback, ")
+            append("llm-offline runs models 100% offline on this device — there is no cloud fallback, ")
             append("so nothing is sent over the network and no API key is needed.\n\n")
             append("To chat with this model:\n")
             append("1. Open the **Models** tab\n")

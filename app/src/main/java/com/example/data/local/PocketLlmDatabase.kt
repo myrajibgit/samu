@@ -67,11 +67,11 @@ abstract class PocketLlmDatabase : RoomDatabase() {
                 // Populate initial welcome conversation
                 val convId = database.conversationDao().insert(
                     ConversationEntity(
-                        title = "Welcome to PocketLLM",
+                        title = "Welcome to llm-offline",
                         createdAt = System.currentTimeMillis(),
                         updatedAt = System.currentTimeMillis(),
                         modelId = "smollm2-135m",
-                        systemPrompt = "You are PocketLLM, an intelligent, private local AI assistant running on mobile devices. You provide clear, concise and helpful answers.",
+                        systemPrompt = "You are llm-offline, an intelligent, private local AI assistant running on mobile devices. You provide clear, concise and helpful answers.",
                         temperature = 0.7f,
                         topP = 0.9f
                     )
@@ -81,7 +81,7 @@ abstract class PocketLlmDatabase : RoomDatabase() {
                     ChatMessageEntity(
                         conversationId = convId,
                         sender = "ASSISTANT",
-                        content = "👋 Welcome to **PocketLLM**!\n\nI'm your private on-device AI assistant. Here is what you can do:\n\n1. **1-Tap Model Downloads**: Head to the **Models** tab to download lightweight GGUF models directly to your phone (like SmolLM2, Llama 3.2 1B, Qwen 2.5, DeepSeek-R1).\n2. **Ollama Hub Bridge**: Connect to your PC/Mac or local server running Ollama (`localhost:11434` or network IP) to run any model without downloading.\n3. **GGUF Inspector**: View tensor counts, quantization format, and context length for imported weights.\n4. **100% Private**: Your conversations and local models stay entirely on your device.\n\nTry sending a message or tap the model chip above to inspect or switch models!",
+                        content = "👋 Welcome to **llm-offline**!\n\nI'm your private on-device AI assistant. Here is what you can do:\n\n1. **1-Tap Model Downloads**: Head to the **Models** tab to download lightweight GGUF models directly to your phone (like SmolLM2, Llama 3.2 1B, Qwen 2.5, DeepSeek-R1).\n2. **Ollama Hub Bridge**: Connect to your PC/Mac or local server running Ollama (`localhost:11434` or network IP) to run any model without downloading.\n3. **GGUF Inspector**: View tensor counts, quantization format, and context length for imported weights.\n4. **100% Private**: Your conversations and local models stay entirely on your device.\n\nTry sending a message or tap the model chip above to inspect or switch models!",
                         timestamp = System.currentTimeMillis() - 1000,
                         tokensPerSecond = 34.2f,
                         totalTokens = 128,

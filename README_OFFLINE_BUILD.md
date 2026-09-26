@@ -1,4 +1,4 @@
-# Running 100% Offline AI on Your Android Phone
+# llm-offline — Running 100% Offline AI on Your Android Phone
 
 This build runs **real LLMs 100% offline on your phone** — no API key, no cloud, no NDK setup.
 
@@ -18,7 +18,7 @@ files for `arm64-v8a` and `x86_64` ship inside the app). Download a GGUF model o
 
 ## Secrets via Infisical (optional)
 
-PocketLLM builds and runs with **zero secrets**. When you eventually need them
+llm-offline builds and runs with **zero secrets**. When you eventually need them
 (e.g. release-signing credentials), they are delivered centrally by
 [Infisical](https://infisical.com) instead of a `.env` file on disk:
 
@@ -99,14 +99,26 @@ via `GeminiCloudService`, but the chat never uses it — fully optional.
 ## Building locally (verified)
 
 ```bash
-./gradlew assembleDebug          # -> app/build/outputs/apk/debug/app-debug.apk (~67 MB)
+./gradlew assembleDebug          # -> app/build/outputs/apk/debug/llm-offline.apk (~67 MB)
 ./gradlew testDebugUnitTest      # -> 6 engine tests + Robolectric + plain JUnit
 ```
+
+## App name & artifact
+
+| Thing | Value |
+| ----- | ----- |
+| Launcher label (`strings.xml` → `app_name`) | `llm-offline` |
+| Debug APK file | `app/build/outputs/apk/debug/llm-offline.apk` |
+| Release APK file | `app/build/outputs/apk/release/llm-offline-release.apk` |
+| CI artifact | `llm-offline` (contains `llm-offline.apk`) |
+| `applicationId` | `com.example` (unchanged — changing it makes Android treat the install as a new app and would break the existing Firebase config) |
+
+The APK file name is set in `app/build.gradle.kts` via `androidComponents` → `VariantOutputImpl.outputFileName`, the only hook AGP 9 exposes for output naming.
 
 A local debug build was verified end-to-end (JDK 17 + Android SDK 36.1) and the
 produced APK contains the native `librnllama*.so` for `arm64-v8a` and `x86_64`
 (CPU-variant dispatch included). The same build also runs in CI
-(`.github/workflows/build-apk.yml`) which uploads the APK as an artifact.
+(`.github/workflows/build-apk.yml`) which uploads it as the `llm-offline` artifact.
 
 ## Advanced: upgrading the native core
 

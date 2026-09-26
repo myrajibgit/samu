@@ -1,3 +1,4 @@
+import com.android.build.api.variant.impl.VariantOutputImpl
 import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
 
 plugins {
@@ -82,6 +83,21 @@ android {
     sourceSets {
         getByName("main") {
             jniLibs.srcDirs("src/main/jniLibs")
+        }
+    }
+}
+
+// Ship a predictably named APK: llm-offline.apk (debug) / llm-offline-release.apk (release).
+// AGP 9 exposes no public DSL for the output file name, so the documented hook is
+// VariantOutputImpl.outputFileName. Guarded with a safe cast so a future AGP that
+// renames the impl class degrades to the default name instead of failing the build.
+androidComponents {
+    onVariants { variant ->
+        val fileName =
+            if (variant.buildType == "release") "llm-offline-release.apk" else "llm-offline.apk"
+
+        variant.outputs.forEach { output ->
+            (output as? VariantOutputImpl)?.outputFileName?.set(fileName)
         }
     }
 }
